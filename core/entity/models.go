@@ -1,0 +1,100 @@
+package entity
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// --- USER & LOYALTY ENTITIES ---
+
+type User struct {
+	UserID         uuid.UUID  `gorm:"type:uuid;primaryKey" json:"user_id"`
+	Name           string     `gorm:"size:50;not null" json:"name"`
+	Email          string     `gorm:"size:50;unique;not null" json:"email"`
+	Password       string     `gorm:"not null" json:"password,omitempty"`
+	ProfilePicture string     `json:"profile_picture"`
+	Birth          *time.Time `json:"birth"`
+	Role           string     `gorm:"type:user_role;default:customer" json:"role"`
+	Phone          string     `gorm:"size:13" json:"phone"`
+	Gender         string     `gorm:"type:user_gender" json:"gender"`
+	// IdPoint      int            `json:"id_point"`
+	CreatedAt    time.Time      `json:"created_at"`
+	PointTotal   *PointTotal    `gorm:"foreignKey:UserID" json:"point_total"`
+	PointHistory []PointHistory `gorm:"foreignKey:UserID" json:"point_history"`
+}
+
+func (User) TableName() string { return "users" } // Tabel Users biasanya jamak di Supabase
+
+type PointTotal struct {
+	TotalPointID uint      `gorm:"primaryKey" json:"total_point_id"`
+	UserID       uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"user_id"`
+	Total        int       `gorm:"default:0" json:"total"`
+	Tier         string    `gorm:"type:point_tier;default:friend" json:"tier"`
+	CreatedAt    time.Time `json:"created_at"`
+	User         *User     `gorm:"foreignKey:UserID;references:UserID" json:"user"`
+}
+
+func (PointTotal) TableName() string { return "point_total" }
+
+type PointHistory struct {
+	PointID   uint      `gorm:"primaryKey" json:"point_id"`
+	UserID    uuid.UUID `gorm:"type:uuid" json:"user_id"`
+	Point     int       `gorm:"not null" json:"point"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (PointHistory) TableName() string { return "point_history" }
+
+// --- PRODUCT CATALOG ENTITIES ---
+
+type Brand struct {
+	BrandID   uint      `gorm:"primaryKey" json:"brand_id"`
+	Name      string    `gorm:"size:50;not null" json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	Products  []Product `gorm:"foreignKey:BrandID" json:"products,omitempty"`
+}
+
+func (Brand) TableName() string { return "brand" }
+
+type Category struct {
+	CategoryID uint      `gorm:"primaryKey" json:"category_id"`
+	Name       string    `gorm:"size:50;not null" json:"name"`
+	CreatedAt  time.Time `json:"created_at"`
+	Products   []Product `gorm:"foreignKey:CategoryID" json:"products,omitempty"`
+}
+
+func (Category) TableName() string { return "category" }
+
+type Product struct {
+	ProductID   uint      `gorm:"primaryKey" json:"product_id"`
+	BrandID     uint      `json:"brand_id"`
+	CategoryID  uint      `json:"category_id"`
+	Name        string    `gorm:"size:50;not null" json:"name"`
+	Price       float64   `gorm:"type:numeric" json:"price"`
+	ImageURL    string    `json:"image_url"`
+	Description string    `json:"description"`
+	Stock       int       `json:"stock"`
+	Condition   string    `gorm:"type:product_condition" json:"condition"`
+	Status      string    `gorm:"type:product_status" json:"status"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	Brand       Brand     `gorm:"foreignKey:BrandID" json:"brand"`
+	Category    Category  `gorm:"foreignKey:CategoryID" json:"category"`
+}
+
+func (Product) TableName() string { return "product" } // Memaksa ke tabel 'product' bukan 'products'
+
+// --- INFORMATION ENTITY ---
+
+type News struct {
+	NewsID      uint      `gorm:"primaryKey" json:"news_id"`
+	Title       string    `gorm:"size:50;not null" json:"title"`
+	Description string    `json:"description"`
+	IsActive    bool      `gorm:"default:true" json:"is_active"`
+	Status      string    `gorm:"type:news_status" json:"status"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (News) TableName() string { return "news" }
