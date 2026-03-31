@@ -81,7 +81,7 @@ func init() {
 		api.GET("/brand", brandHandler.GetAll)
 		brandAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			brandAdmin.POST("/admin/", brandHandler.Create)
+			brandAdmin.POST("/admin", brandHandler.Create)
 			brandAdmin.DELETE("/admin/:id", brandHandler.Delete)
 		}
 
@@ -89,7 +89,7 @@ func init() {
 		api.GET("/category", categoryHandler.GetAll)
 		categoryAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			categoryAdmin.POST("/admin/", categoryHandler.Create)
+			categoryAdmin.POST("/admin", categoryHandler.Create)
 			categoryAdmin.DELETE("/admin/:id", categoryHandler.Delete)
 		}
 
@@ -100,7 +100,7 @@ func init() {
 		productAdmin := api.Group("/products")
 		productAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			productAdmin.POST("/admin/", productHandler.Create)
+			productAdmin.POST("/admin", productHandler.Create)
 			productAdmin.PUT("/admin/:id", productHandler.Update)
 			productAdmin.DELETE("/admin/:id", productHandler.Delete)
 		}
@@ -108,7 +108,7 @@ func init() {
 		points := api.Group("/points")
 		{
 			points.GET("/history", pHandler.GetHistory)
-			points.POST("/admin/", middleware.RoleMiddleware("admin"), pHandler.CreatePoint)
+			points.POST("/admin", middleware.RoleMiddleware("admin"), pHandler.CreatePoint)
 			points.GET("/admin/all", middleware.RoleMiddleware("admin"), pHandler.GetAllSummaries)
 		}
 
@@ -116,7 +116,7 @@ func init() {
 		newsAdmin := api.Group("/news")
 		newsAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			newsAdmin.POST("/admin/", newsHandler.Create)
+			newsAdmin.POST("/admin", newsHandler.Create)
 			newsAdmin.PUT("/admin/:id", newsHandler.Update)
 			newsAdmin.DELETE("/admin/:id", newsHandler.Delete)
 		}
