@@ -11,12 +11,18 @@ type BrandRepository interface {
 	GetAll() ([]entity.Brand, error)
 	Delete(id uint) error
 	Update(b *entity.Brand) error
+	GetByID(id uint) (entity.Brand, error)
 }
 
 type brandRepo struct {
 	db *gorm.DB
 }
 
+func (r *brandRepo) GetByID(id uint) (entity.Brand, error) {
+	var b entity.Brand
+	err := r.db.First(&b, id).Error
+	return b, err
+}
 func NewBrandRepository(db *gorm.DB) BrandRepository { return &brandRepo{db: db} }
 
 func (r *brandRepo) Create(b *entity.Brand) error { return r.db.Create(b).Error }
