@@ -69,6 +69,10 @@ func (u *userUC) UpdateProfile(user *entity.User, file io.Reader, fileName, cont
 
 // ... Implementasi RegisterUser, Login, dll tetap sama seperti sebelumnya ...
 func (u *userUC) RegisterUser(user *entity.User) error {
+	existingUser, _ := u.repo.GetByEmail(user.Email)
+	if existingUser.Email != "" {
+		return errors.New("email already in use")
+	}
 	if user.UserID == uuid.Nil {
 		user.UserID = uuid.New()
 	}

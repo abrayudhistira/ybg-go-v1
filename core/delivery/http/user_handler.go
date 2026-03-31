@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/usecase"
 	"ybg-backend-go/pkg/utils"
@@ -33,19 +34,46 @@ func (h *UserHandler) RegisterRoutes(r *gin.Engine) {
 	}
 }
 
+//	func (h *UserHandler) Create(c *gin.Context) {
+//		var u entity.User
+//		if err := c.ShouldBindJSON(&u); err != nil {
+//			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+//			return
+//		}
+//		if err := h.uc.RegisterUser(&u); err != nil {
+//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register user"})
+//			return
+//		}
+//		c.JSON(http.StatusCreated, gin.H{"message": "User created", "data": u})
+//	}
 func (h *UserHandler) Create(c *gin.Context) {
 	var u entity.User
+
+	// 1. Validasi otomatis via struct tags (email, min length, dll)
 	if err := c.ShouldBindJSON(&u); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validasi gagal",
+			"details": err.Error(), // Nanti muncul: "Email must be a valid email"
+		})
 		return
 	}
+
+	// 2. Sanitasi Input (Trim spaces)
+	u.Email = strings.ToLower(strings.TrimSpace(u.Email))
+	u.Name = strings.TrimSpace(u.Name)
+
 	if err := h.uc.RegisterUser(&u); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register user"})
+		// Cek jika email sudah terdaftar (Unique Constraint)
+		if strings.Contains(err.Error(), "duplicate key") {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email sudah terdaftar"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal registrasi"})
 		return
 	}
+
 	c.JSON(http.StatusCreated, gin.H{"message": "User created", "data": u})
 }
-
 func (h *UserHandler) GetAll(c *gin.Context) {
 	users, err := h.uc.FetchAllUsers()
 	if err != nil {
@@ -163,11 +191,12 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 func (h *UserHandler) Login(c *gin.Context) {
 	var req struct {
-		Email    string `json:"email" binding:"required"`
+		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Periksa Kembali Email Anda!"})
 		return
 	}
 
