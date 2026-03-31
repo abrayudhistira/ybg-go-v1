@@ -16,6 +16,14 @@ import (
 
 // Injectors from wire.go:
 
+func InitializeAuthHandler(db *gorm.DB) *http.AuthHandler {
+	userRepository := repository.NewUserRepository(db)
+	authRepository := repository.NewAuthRepository(db)
+	authUsecase := usecase.NewAuthUsecase(userRepository, authRepository)
+	authHandler := http.NewAuthHandler(authUsecase)
+	return authHandler
+}
+
 // Injector Functions
 func InitializeUserHandler(db *gorm.DB) *http.UserHandler {
 	userRepository := repository.NewUserRepository(db)
@@ -60,6 +68,14 @@ func InitializePointHandler(db *gorm.DB) *http.PointHandler {
 	return pointHandler
 }
 
+func InitializeCartHandler(db *gorm.DB) *http.CartHandler {
+	cartRepository := repository.NewCartRepository(db)
+	productRepository := repository.NewProductRepository(db)
+	cartUsecase := usecase.NewCartUsecase(cartRepository, productRepository)
+	cartHandler := http.NewCartHandler(cartUsecase)
+	return cartHandler
+}
+
 // wire.go:
 
 // Definisikan semua Set Dependency
@@ -74,3 +90,7 @@ var brandSet = wire.NewSet(repository.NewBrandRepository, usecase.NewBrandUsecas
 var categorySet = wire.NewSet(repository.NewCategoryRepository, usecase.NewCategoryUsecase, http.NewCategoryHandler)
 
 var pointSet = wire.NewSet(repository.NewPointRepository, usecase.NewPointUsecase, http.NewPointHandler)
+
+var cartSet = wire.NewSet(repository.NewCartRepository, repository.NewProductRepository, usecase.NewCartUsecase, http.NewCartHandler)
+
+var authSet = wire.NewSet(repository.NewAuthRepository, repository.NewUserRepository, usecase.NewAuthUsecase, http.NewAuthHandler)

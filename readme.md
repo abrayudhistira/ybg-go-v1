@@ -9,3 +9,6 @@ go mod tidy
 To Wire :
 
 go run github.com/google/wire/cmd/wire ./core/wire
+
+To Run Vercel Locally :
+vercel dev

@@ -40,6 +40,8 @@ func init() {
 	brandHandler := wire.InitializeBrandHandler(db)
 	categoryHandler := wire.InitializeCategoryHandler(db)
 	pHandler := wire.InitializePointHandler(db)
+	authHandler := wire.InitializeAuthHandler(db)
+	cartHandler := wire.InitializeCartHandler(db)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
@@ -54,6 +56,12 @@ func init() {
 		c.JSON(200, gin.H{"status": "UP", "database": "connected"})
 	})
 
+	authGroup := r.Group("/auth")
+	{
+		authGroup.POST("/forgot-password", authHandler.ForgotPassword)
+		authGroup.POST("/reset-password", authHandler.ResetPassword)
+	}
+
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware())
 	{
@@ -62,16 +70,16 @@ func init() {
 		api.GET("/brand", brandHandler.GetAll)
 		brandAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			brandAdmin.POST("/", brandHandler.Create)
-			brandAdmin.DELETE("/:id", brandHandler.Delete)
+			brandAdmin.POST("/admin/", brandHandler.Create)
+			brandAdmin.DELETE("/admin/:id", brandHandler.Delete)
 		}
 
 		categoryAdmin := api.Group("/category")
 		api.GET("/category", categoryHandler.GetAll)
 		categoryAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			categoryAdmin.POST("/", categoryHandler.Create)
-			categoryAdmin.DELETE("/:id", categoryHandler.Delete)
+			categoryAdmin.POST("/admin/", categoryHandler.Create)
+			categoryAdmin.DELETE("/admin/:id", categoryHandler.Delete)
 		}
 
 		api.GET("/products", productHandler.GetAll)
@@ -81,30 +89,38 @@ func init() {
 		productAdmin := api.Group("/products")
 		productAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			productAdmin.POST("/", productHandler.Create)
-			productAdmin.PUT("/:id", productHandler.Update)
-			productAdmin.DELETE("/:id", productHandler.Delete)
+			productAdmin.POST("/admin/", productHandler.Create)
+			productAdmin.PUT("/admin/:id", productHandler.Update)
+			productAdmin.DELETE("/admin/:id", productHandler.Delete)
 		}
 
 		points := api.Group("/points")
 		{
 			points.GET("/history", pHandler.GetHistory)
-			points.POST("/", middleware.RoleMiddleware("admin"), pHandler.CreatePoint)
-			points.GET("/all", middleware.RoleMiddleware("admin"), pHandler.GetAllSummaries)
+			points.POST("/admin/", middleware.RoleMiddleware("admin"), pHandler.CreatePoint)
+			points.GET("/admin/all", middleware.RoleMiddleware("admin"), pHandler.GetAllSummaries)
 		}
 
 		api.GET("/news", newsHandler.GetAll)
 		newsAdmin := api.Group("/news")
 		newsAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			newsAdmin.POST("/", newsHandler.Create)
-			newsAdmin.PUT("/:id", newsHandler.Update)
-			newsAdmin.DELETE("/:id", newsHandler.Delete)
+			newsAdmin.POST("/admin/", newsHandler.Create)
+			newsAdmin.PUT("/admin/:id", newsHandler.Update)
+			newsAdmin.DELETE("/admin/:id", newsHandler.Delete)
 		}
 
-		api.GET("/users", middleware.RoleMiddleware("admin"), userHandler.GetAll)
+		api.GET("/admin/users", middleware.RoleMiddleware("admin"), userHandler.GetAll)
 		api.GET("/profile/:id", userHandler.GetByID)
 		api.PUT("/profile/:id", userHandler.Update)
+
+		cartGroup := api.Group("/cart")
+		{
+			cartGroup.GET("/", cartHandler.GetMyCart)
+			cartGroup.POST("/", cartHandler.AddToCart)
+			cartGroup.DELETE("/:id", cartHandler.DeleteItem)
+			cartGroup.DELETE("/clear", cartHandler.ClearMyCart)
+		}
 	}
 
 	router = r

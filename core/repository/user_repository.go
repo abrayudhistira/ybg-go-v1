@@ -14,6 +14,7 @@ type UserRepository interface {
 	Update(u *entity.User) error
 	Delete(id uuid.UUID) error
 	GetByEmail(email string) (entity.User, error)
+	UpdatePasswordByEmail(email string, hashedPassword string) error
 }
 
 type userRepo struct {
@@ -56,4 +57,10 @@ func (r *userRepo) Update(u *entity.User) error {
 
 func (r *userRepo) Delete(id uuid.UUID) error {
 	return r.db.Delete(&entity.User{}, "user_id = ?", id).Error
+}
+
+func (r *userRepo) UpdatePasswordByEmail(email string, hashedPassword string) error {
+	// Menggunakan .Model() dan .Where() memastikan GORM tahu baris mana yang diupdate
+	// .Update() hanya menyentuh kolom password saja
+	return r.db.Model(&entity.User{}).Where("email = ?", email).Update("password", hashedPassword).Error
 }

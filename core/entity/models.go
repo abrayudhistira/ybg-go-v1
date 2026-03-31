@@ -12,7 +12,7 @@ type User struct {
 	UserID         uuid.UUID  `gorm:"type:uuid;primaryKey" json:"user_id"`
 	Name           string     `gorm:"size:50;not null" json:"name"`
 	Email          string     `gorm:"size:50;unique;not null" json:"email"`
-	Password       string     `gorm:"not null" json:"password,omitempty"`
+	Password       string     `gorm:"size:255" json:"password,omitempty"`
 	ProfilePicture string     `json:"profile_picture"`
 	Birth          *time.Time `json:"birth"`
 	Role           string     `gorm:"type:user_role;default:customer" json:"role"`
@@ -98,3 +98,38 @@ type News struct {
 }
 
 func (News) TableName() string { return "news" }
+
+type PasswordReset struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Email     string    `gorm:"size:100;not null" json:"email"`
+	OTP       string    `gorm:"size:6;not null" json:"otp"`
+	ExpiredAt time.Time `gorm:"not null" json:"expired_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (PasswordReset) TableName() string { return "password_resets" }
+
+type Cart struct {
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	UserID    uuid.UUID  `gorm:"type:uuid;unique;not null" json:"user_id"` // Gunakan uuid.UUID
+	Items     []CartItem `gorm:"foreignKey:CartID" json:"items"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+func (Cart) TableName() string { return "carts" }
+
+// CartItem adalah isi dari keranjang yang merujuk ke Product
+type CartItem struct {
+	ID        uint `gorm:"primaryKey" json:"id"`
+	CartID    uint `gorm:"column:cart_id" json:"cart_id"`       // Eksplisit kolom database
+	ProductID uint `gorm:"column:product_id" json:"product_id"` // Eksplisit kolom database
+
+	// Tambahkan references:ProductID karena PK di struct Product bukan bernama 'ID'
+	Product Product `gorm:"foreignKey:ProductID;references:ProductID" json:"product"`
+
+	Quantity  int       `json:"quantity"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (CartItem) TableName() string { return "cart_items" }

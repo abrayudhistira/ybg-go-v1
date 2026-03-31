@@ -50,6 +50,25 @@ var pointSet = wire.NewSet(
 	http.NewPointHandler,
 )
 
+var cartSet = wire.NewSet(
+	repository.NewCartRepository,
+	repository.NewProductRepository, // Dibutuhkan untuk cek stok di usecase cart
+	usecase.NewCartUsecase,
+	http.NewCartHandler,
+)
+
+var authSet = wire.NewSet(
+	repository.NewAuthRepository, // Pastikan ini sudah dibuat di folder repository
+	repository.NewUserRepository, // Dibutuhkan untuk update password
+	usecase.NewAuthUsecase,
+	http.NewAuthHandler, // Pastikan nama package handler kamu adalah 'http' sesuai yang lain
+)
+
+func InitializeAuthHandler(db *gorm.DB) *http.AuthHandler {
+	wire.Build(authSet)
+	return nil
+}
+
 // Injector Functions
 func InitializeUserHandler(db *gorm.DB) *http.UserHandler {
 	wire.Build(userSet)
@@ -78,5 +97,9 @@ func InitializeCategoryHandler(db *gorm.DB) *http.CategoryHandler {
 
 func InitializePointHandler(db *gorm.DB) *http.PointHandler {
 	wire.Build(pointSet)
+	return nil
+}
+func InitializeCartHandler(db *gorm.DB) *http.CartHandler {
+	wire.Build(cartSet)
 	return nil
 }
