@@ -15,6 +15,7 @@ type BrandUsecase interface {
 	CreateBrand(b *entity.Brand, file io.Reader, fileName, contentType string) error
 	GetAllBrands() ([]entity.Brand, error)
 	DeleteBrand(id uint) error
+	UpdateBrand(id uint, b *entity.Brand, file io.Reader, fileName, contentType string) error
 }
 
 type brandUC struct {
@@ -71,3 +72,20 @@ func (u *brandUC) CreateBrand(b *entity.Brand, file io.Reader, fileName, content
 
 func (u *brandUC) GetAllBrands() ([]entity.Brand, error) { return u.repo.GetAll() }
 func (u *brandUC) DeleteBrand(id uint) error             { return u.repo.Delete(id) }
+
+func (u *brandUC) UpdateBrand(id uint, b *entity.Brand, file io.Reader, fileName, contentType string) error {
+	// 1. Cek apakah brand-nya ada di DB
+	// (Opsional: kamu bisa tambah method GetByID di repo kalau mau validasi dulu)
+
+	// 2. Jika ada file gambar baru, upload ke Supabase
+	if file != nil {
+		url, err := u.uploadToSupabase(file, fileName, contentType)
+		if err != nil {
+			return err
+		}
+		b.ImageURL = url
+	}
+
+	b.BrandID = id          // Pastikan ID-nya sesuai dengan param URL
+	return u.repo.Update(b) // Pastikan di Repo sudah ada method Update
+}

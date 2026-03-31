@@ -71,3 +71,44 @@ func (h *BrandHandler) Delete(c *gin.Context) {
 	h.uc.DeleteBrand(uint(id))
 	c.JSON(http.StatusOK, gin.H{"message": "Brand deleted"})
 }
+
+func (h *BrandHandler) Update(c *gin.Context) {
+	// 1. Ambil ID dari URL
+	idParam := c.Param("id")
+	id, _ := strconv.Atoi(idParam)
+
+	// 2. Ambil data dari Form (Multipart)
+	name := c.PostForm("name")
+
+	fileHeader, err := c.FormFile("image")
+	var file io.Reader
+	var fileName, contentType string
+
+	if err == nil {
+		// Validasi size & type jika ada file baru
+		if fileHeader.Size > 1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "file too large, max 1MB"})
+			return
+		}
+		openedFile, _ := fileHeader.Open()
+		defer openedFile.Close()
+		file = openedFile
+		fileName = fileHeader.Filename
+		contentType = fileHeader.Header.Get("Content-Type")
+	}
+
+	brand := entity.Brand{
+		Name: name,
+	}
+
+	// 3. Eksekusi ke Usecase
+	if err := h.uc.UpdateBrand(uint(id), &brand, file, fileName, contentType); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Brand updated successfully",
+		"data":    brand,
+	})
+}

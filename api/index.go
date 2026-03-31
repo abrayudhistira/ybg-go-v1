@@ -83,6 +83,7 @@ func init() {
 		{
 			brandAdmin.POST("/admin", brandHandler.Create)
 			brandAdmin.DELETE("/admin/:id", brandHandler.Delete)
+			brandAdmin.PUT("/admin/:id", brandHandler.Update)
 		}
 
 		categoryAdmin := api.Group("/category")
