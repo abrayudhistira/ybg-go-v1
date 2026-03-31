@@ -3,11 +3,13 @@ package handler
 import (
 	"net/http"
 	"os"
+	"time"
 
 	"ybg-backend-go/core/delivery/http/middleware"
 	"ybg-backend-go/core/repository"
 	"ybg-backend-go/core/wire" // Pastikan import path ini benar
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -45,6 +47,15 @@ func init() {
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// --- Routes Setup ---
 	r.GET("/", func(c *gin.Context) {
