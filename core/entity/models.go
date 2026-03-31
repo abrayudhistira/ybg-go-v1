@@ -51,6 +51,7 @@ func (PointHistory) TableName() string { return "point_history" }
 type Brand struct {
 	BrandID   uint      `gorm:"primaryKey" json:"brand_id"`
 	Name      string    `gorm:"size:50;not null" json:"name" form:"name"`
+	ImageURL  string    `gorm:"column:image_url" json:"image_url"`
 	CreatedAt time.Time `json:"created_at"`
 	Products  []Product `gorm:"foreignKey:BrandID" json:"products,omitempty"`
 }
