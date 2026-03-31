@@ -17,7 +17,7 @@ func NewBrandHandler(uc usecase.BrandUsecase) *BrandHandler { return &BrandHandl
 
 func (h *BrandHandler) Create(c *gin.Context) {
 	var b entity.Brand
-	if err := c.ShouldBindJSON(&b); err != nil {
+	if err := c.ShouldBind(&b); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
