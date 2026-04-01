@@ -8,11 +8,15 @@ import (
 	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/repository"
 	"ybg-backend-go/pkg/utils"
+
+	"github.com/google/uuid"
 )
 
 type AuthUsecase interface {
 	RequestOTP(email string) error
 	VerifyOTPAndResetPassword(email, otp, newPassword string) error
+	RequestEmailUpdateOTP(newEmail string) error
+	VerifyAndChangeEmail(userID uuid.UUID, email, otp string) error
 }
 
 type authUC struct {
@@ -67,9 +71,9 @@ func (u *authUC) VerifyOTPAndResetPassword(email, otp, newPassword string) error
 	// Hash Password Baru
 	// hashedPassword, _ := utils.HashPassword(newPassword)
 	hashedPassword, err := utils.HashPassword(newPassword)
-    if err != nil {
-        return errors.New("gagal memproses password")
-    }
+	if err != nil {
+		return errors.New("gagal memproses password")
+	}
 
 	// Update di tabel Users
 	// user, _ := u.userRepo.GetByEmail(email)
@@ -78,10 +82,57 @@ func (u *authUC) VerifyOTPAndResetPassword(email, otp, newPassword string) error
 	// 	return err
 	// }
 	if err := u.userRepo.UpdatePasswordByEmail(email, hashedPassword); err != nil {
-        return errors.New("gagal memperbarui password di database")
-    }
+		return errors.New("gagal memperbarui password di database")
+	}
 
 	// Hapus OTP karena sudah berhasil dipakai
+	return u.authRepo.DeleteOTP(email)
+}
+func (u *authUC) RequestEmailUpdateOTP(newEmail string) error {
+	// 1. Validasi: Cek apakah email baru sudah ada yang punya?
+	existingUser, _ := u.userRepo.GetByEmail(newEmail)
+	if existingUser.Email != "" {
+		return errors.New("email sudah terdaftar oleh pengguna lain")
+	}
+
+	// 2. Generate 6 digit angka random
+	otp := u.generateRandomOTP(6)
+
+	// 3. Simpan ke DB (Expired 15 menit)
+	// Kita pakai entity PasswordReset yang sudah ada karena strukturnya sama (Email & OTP)
+	resetData := &entity.PasswordReset{
+		Email:     newEmail,
+		OTP:       otp,
+		ExpiredAt: time.Now().Add(15 * time.Minute),
+	}
+
+	if err := u.authRepo.SaveOTP(resetData); err != nil {
+		return err
+	}
+
+	// 4. Kirim ke email BARU tersebut
+	// User harus bisa buka email barunya untuk verifikasi
+	return utils.SendOTPEmail(newEmail, otp)
+}
+func (u *authUC) VerifyAndChangeEmail(userID uuid.UUID, email, otp string) error {
+	// 1. Cek OTP di AuthRepo (Tabel password_resets)
+	reset, err := u.authRepo.CheckOTP(email, otp)
+	if err != nil {
+		return errors.New("kode OTP salah")
+	}
+
+	// 2. Cek apakah OTP sudah expired
+	if time.Now().After(reset.ExpiredAt) {
+		u.authRepo.DeleteOTP(email)
+		return errors.New("kode OTP sudah kadaluwarsa")
+	}
+
+	// 3. EKSEKUSI: Update email di tabel Users via UserRepository
+	if err := u.userRepo.UpdateEmail(userID, email); err != nil {
+		return errors.New("gagal memperbarui email di database")
+	}
+
+	// 4. Bersihkan OTP karena sudah terpakai
 	return u.authRepo.DeleteOTP(email)
 }
 

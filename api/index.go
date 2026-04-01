@@ -123,8 +123,16 @@ func init() {
 		}
 
 		api.GET("/admin/users", middleware.RoleMiddleware("admin"), userHandler.GetAll)
-		api.GET("/profile/:id", userHandler.GetByID)
-		api.PUT("/profile/:id", userHandler.Update)
+
+		userGroup := api.Group("/profile")
+		{
+			userGroup.GET("/:id", userHandler.GetByID)
+			userGroup.PUT("/:id", userHandler.Update)
+			userGroup.POST("/request-change-email", authHandler.RequestChangeEmail)
+			userGroup.POST("/verify-change-email", authHandler.VerifyChangeEmail)
+		}
+		// api.GET("/profile/:id", userHandler.GetByID)
+		// api.PUT("/profile/:id", userHandler.Update)
 
 		cartGroup := api.Group("/cart")
 		{

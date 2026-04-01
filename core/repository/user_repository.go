@@ -15,6 +15,7 @@ type UserRepository interface {
 	Delete(id uuid.UUID) error
 	GetByEmail(email string) (entity.User, error)
 	UpdatePasswordByEmail(email string, hashedPassword string) error
+	UpdateEmail(id uuid.UUID, newEmail string) error
 }
 
 type userRepo struct {
@@ -47,11 +48,26 @@ func (r *userRepo) GetByEmail(email string) (entity.User, error) {
 	return user, err
 }
 
+// func (r *userRepo) Update(u *entity.User) error {
+// 	// Omit field yang tidak boleh diubah sembarangan via profile update
+// 	return r.db.Model(u).
+// 		Where("user_id = ?", u.UserID).
+// 		Omit("PointTotal", "PointHistory", "Password", "Role").
+// 		Updates(u).Error
+// }
+
 func (r *userRepo) Update(u *entity.User) error {
-	// Omit field yang tidak boleh diubah sembarangan via profile update
 	return r.db.Model(u).
 		Where("user_id = ?", u.UserID).
-		Omit("PointTotal", "PointHistory", "Password", "Role").
+		// Field yang dilarang keras diubah via profile update:
+		Omit(
+			"UserID",
+			"Role",
+			"Password",
+			"CreatedAt",
+			"PointTotal",
+			"PointHistory",
+		).
 		Updates(u).Error
 }
 
@@ -63,4 +79,7 @@ func (r *userRepo) UpdatePasswordByEmail(email string, hashedPassword string) er
 	// Menggunakan .Model() dan .Where() memastikan GORM tahu baris mana yang diupdate
 	// .Update() hanya menyentuh kolom password saja
 	return r.db.Model(&entity.User{}).Where("email = ?", email).Update("password", hashedPassword).Error
+}
+func (r *userRepo) UpdateEmail(id uuid.UUID, newEmail string) error {
+	return r.db.Model(&entity.User{}).Where("user_id = ?", id).Update("email", newEmail).Error
 }

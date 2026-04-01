@@ -5,6 +5,7 @@ import (
 	"ybg-backend-go/core/usecase"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -51,4 +52,51 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password berhasil diperbarui, silakan login kembali"})
+}
+
+func (h *AuthHandler) RequestChangeEmail(c *gin.Context) {
+	var input struct {
+		NewEmail string `json:"new_email" binding:"required,email"`
+	}
+
+	// 1. Validasi format input
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format email tidak valid"})
+		return
+	}
+
+	// 2. Panggil Usecase untuk cek email & kirim OTP
+	if err := h.uc.RequestEmailUpdateOTP(input.NewEmail); err != nil {
+		// Error ini bisa muncul kalau email sudah terdaftar atau gagal kirim Gmail
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Respon sukses
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Kode verifikasi telah dikirim ke email baru anda: " + input.NewEmail,
+	})
+}
+func (h *AuthHandler) VerifyChangeEmail(c *gin.Context) {
+	var input struct {
+		NewEmail string `json:"new_email" binding:"required,email"`
+		OTP      string `json:"otp" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid"})
+		return
+	}
+
+	// Ambil UserID dari middleware Auth (JWT)
+	// Karena hanya user yang login yang boleh ganti emailnya sendiri
+	userIDStr := c.MustGet("user_id").(string)
+	userID, _ := uuid.Parse(userIDStr)
+
+	if err := h.uc.VerifyAndChangeEmail(userID, input.NewEmail, input.OTP); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Email berhasil diperbarui!"})
 }
