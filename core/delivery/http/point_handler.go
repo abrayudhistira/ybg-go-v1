@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -26,26 +27,70 @@ func NewPointHandler(uc usecase.PointUsecase) *PointHandler { return &PointHandl
 //		}
 //		c.JSON(http.StatusOK, gin.H{"data": res})
 //	}
+// func (h *PointHandler) GetHistory(c *gin.Context) {
+// 	// 1. Ambil userID dari middleware Auth
+// 	uidObj, exists := c.Get("user_id")
+// 	if !exists {
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+// 		return
+// 	}
+
+// 	// Pastikan casting tipe data sesuai (uuid.UUID)
+// 	uid, ok := uidObj.(uuid.UUID)
+// 	if !ok {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+// 		return
+// 	}
+
+// 	// 2. Panggil Usecase dengan filter UID
+// 	res, err := h.uc.GetMyPointHistory(uid)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil history"})
+// 		return
+// 	}
+
+//		c.JSON(http.StatusOK, gin.H{"data": res})
+//	}
 func (h *PointHandler) GetHistory(c *gin.Context) {
-	// 1. Ambil userID dari middleware Auth
-	uidObj, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
+	var targetUID uuid.UUID
+	var err error
+
+	// 1. Prioritas: Cek apakah ada user_id di Query Parameter (?user_id=...)
+	// Ini digunakan saat Admin sedang mengecek history user tertentu
+	queryUID := c.Query("user_id")
+
+	if queryUID != "" {
+		targetUID, err = uuid.Parse(queryUID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format User ID tidak valid (harus UUID)"})
+			return
+		}
+	} else {
+		// 2. Fallback: Jika tidak ada query param, ambil dari JWT (untuk user melihat dirinya sendiri)
+		uidObj, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesi tidak ditemukan, silakan login kembali"})
+			return
+		}
+
+		var ok bool
+		targetUID, ok = uidObj.(uuid.UUID)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memproses identitas user dari token"})
+			return
+		}
 	}
 
-	// Pastikan casting tipe data sesuai (uuid.UUID)
-	uid, ok := uidObj.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
-		return
-	}
-
-	// 2. Panggil Usecase dengan filter UID
-	res, err := h.uc.GetMyPointHistory(uid)
+	// 3. Panggil Usecase dengan targetUID yang sudah didapat
+	res, err := h.uc.GetMyPointHistory(targetUID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil history"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat poin dari database"})
 		return
+	}
+
+	// 4. Return data (pastikan return array kosong [] jika data tidak ada, jangan nil)
+	if res == nil {
+		res = []entity.PointHistory{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": res})
