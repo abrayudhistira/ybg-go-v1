@@ -64,6 +64,7 @@ func (r *userRepo) Update(u *entity.User) error {
 			"UserID",
 			"Role",
 			"Password",
+			"Email",
 			"CreatedAt",
 			"PointTotal",
 			"PointHistory",

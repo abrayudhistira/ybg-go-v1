@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/usecase"
 	"ybg-backend-go/pkg/utils"
@@ -137,8 +138,17 @@ func (h *UserHandler) Update(c *gin.Context) {
 	var u entity.User
 	u.UserID = id
 	u.Name = c.PostForm("name")
-	u.Email = c.PostForm("email")
-
+	// u.Email = c.PostForm("email")
+	u.Phone = c.PostForm("phone")
+	u.Gender = c.PostForm("gender")
+	birthStr := c.PostForm("birth")
+	if birthStr != "" {
+		// Parse string YYYY-MM-DD ke time.Time
+		t, err := time.Parse("2006-01-02", birthStr)
+		if err == nil {
+			u.Birth = &t // Pastikan di entity User, Birth adalah *time.Time
+		}
+	}
 	// 2. Handling File Gambar
 	var imageStream io.Reader
 	var fileName, contentType string
@@ -166,12 +176,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Profile updated successfully",
-		"data": gin.H{
-			"user_id":         u.UserID,
-			"name":            u.Name,
-			"email":           u.Email,
-			"profile_picture": u.ProfilePicture,
-		},
+		"data":    u,
 	})
 }
 
