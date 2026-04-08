@@ -23,6 +23,7 @@ type RewardUsecase interface {
 	CreateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error
 	UpdateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error
 	DeleteReward(id uuid.UUID) error
+	GetAllUserHistory(page, size int) ([]entity.RewardHistory, int64, error)
 }
 
 type rewardUC struct {
@@ -223,4 +224,16 @@ func (u *rewardUC) UpdateReward(reward *entity.Reward, file io.Reader, fileName,
 
 func (u *rewardUC) DeleteReward(id uuid.UUID) error {
 	return u.repo.Delete(id)
+}
+func (u *rewardUC) GetAllUserHistory(page, size int) ([]entity.RewardHistory, int64, error) {
+	// Default nilai jika kosong
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 10
+	}
+
+	offset := (page - 1) * size
+	return u.repo.GetAllHistories(size, offset)
 }

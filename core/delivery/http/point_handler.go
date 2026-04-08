@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"time"
 	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/usecase"
 
@@ -97,19 +98,41 @@ func (h *PointHandler) GetHistory(c *gin.Context) {
 }
 func (h *PointHandler) CreatePoint(c *gin.Context) {
 	var req struct {
-		UserID uuid.UUID `json:"user_id" binding:"required"`
-		Point  int       `json:"point" binding:"required"`
+		UserID    uuid.UUID `json:"user_id" binding:"required"`
+		Point     int       `json:"point" binding:"required"`
+		ExpiredAt string    `json:"expired_at" binding:"required"` // Format: "2026-12-31T23:59:59Z"
 	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID, Point, dan Expired At wajib diisi"})
 		return
 	}
 
-	if err := h.uc.AddPointTransaction(req.UserID, req.Point); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal update point"})
+	// 1. Validasi Poin Positif
+	if req.Point <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Poin harus lebih besar dari 0"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Point updated successfully"})
+
+	// 2. Parsing String ke Time
+	expiryTime, err := time.Parse(time.RFC3339, req.ExpiredAt)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format tanggal salah. Gunakan format RFC3339 (contoh: 2026-12-31T23:59:59Z)"})
+		return
+	}
+
+	// 3. Validasi: Tanggal expired tidak boleh di masa lalu
+	if expiryTime.Before(time.Now()) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Tanggal kadaluwarsa tidak boleh di masa lalu"})
+		return
+	}
+
+	if err := h.uc.AddPointTransaction(req.UserID, req.Point, expiryTime); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambah poin"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Poin berhasil ditambahkan dengan masa aktif hingga " + req.ExpiredAt})
 }
 func (h *PointHandler) GetAllSummaries(c *gin.Context) {
 	totals, err := h.uc.FetchAllUsersPoints()

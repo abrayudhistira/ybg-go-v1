@@ -162,4 +162,5 @@ type RewardHistory struct {
 
 	// Relasi (Belongs To)
 	Reward Reward `gorm:"foreignKey:RewardID" json:"reward"`
+	User   User   `gorm:"foreignKey:UserID;references:UserID" json:"user"`
 }

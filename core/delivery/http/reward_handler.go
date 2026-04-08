@@ -232,3 +232,26 @@ func (h *RewardHandler) Delete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Reward berhasil dihapus"})
 }
+func (h *RewardHandler) GetAllUserHistory(c *gin.Context) {
+    // Ambil query param, contoh: /api/rewards/admin/history/all?page=1&size=10
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
+
+    histories, total, err := h.uc.GetAllUserHistory(page, size)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Gagal mengambil riwayat klaim: " + err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "status": "success",
+        "data":   histories,
+        "meta": gin.H{
+            "total_data": total,
+            "page":       page,
+            "size":       size,
+        },
+    })
+}

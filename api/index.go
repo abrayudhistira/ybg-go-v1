@@ -187,6 +187,7 @@ func init() {
 			rewardsAdmin.POST("/", rewardHandler.Create)
 			rewardsAdmin.PUT("/:id", rewardHandler.Update)
 			rewardsAdmin.DELETE("/:id", rewardHandler.Delete)
+			rewardsAdmin.GET("/history/all", rewardHandler.GetAllUserHistory)
 		}
 	}
 

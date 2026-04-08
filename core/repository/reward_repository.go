@@ -18,6 +18,7 @@ type RewardRepository interface {
 	Create(reward *entity.Reward) error
 	Update(reward *entity.Reward) error
 	Delete(id uuid.UUID) error
+	GetAllHistories(limit, offset int) ([]entity.RewardHistory, int64, error)
 }
 
 type rewardRepo struct {
@@ -79,4 +80,22 @@ func (r *rewardRepo) Update(reward *entity.Reward) error {
 
 func (r *rewardRepo) Delete(id uuid.UUID) error {
 	return r.db.Delete(&entity.Reward{}, "reward_id = ?", id).Error
+}
+func (r *rewardRepo) GetAllHistories(limit, offset int) ([]entity.RewardHistory, int64, error) {
+	var histories []entity.RewardHistory
+	var total int64
+
+	// Hitung total data untuk keperluan frontend (total pages)
+	r.db.Model(&entity.RewardHistory{}).Count(&total)
+
+	// Ambil data dengan limit dan offset
+	err := r.db.Preload("Reward").
+		Preload("User").
+		Preload("User.PointTotal").
+		Limit(limit).
+		Offset(offset).
+		Order("created_at desc").
+		Find(&histories).Error
+
+	return histories, total, err
 }
