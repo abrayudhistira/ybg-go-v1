@@ -156,6 +156,8 @@ func init() {
 			rewardsAdmin.PATCH("/admin/approve", rewardHandler.Approve)
 			rewardsAdmin.PATCH("/admin/reject", rewardHandler.Reject)
 			rewardsAdmin.POST("/", rewardHandler.Create)
+			rewardsAdmin.PUT("/:id", rewardHandler.Update)
+			rewardsAdmin.DELETE("/:id", rewardHandler.Delete)
 		}
 	}
 

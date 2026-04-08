@@ -16,6 +16,8 @@ type RewardRepository interface {
 	GetHistoryByID(id uuid.UUID) (entity.RewardHistory, error)
 	UpdateHistoryStatus(id uuid.UUID, status string) error
 	Create(reward *entity.Reward) error
+	Update(reward *entity.Reward) error
+	Delete(id uuid.UUID) error
 }
 
 type rewardRepo struct {
@@ -67,4 +69,14 @@ func (r *rewardRepo) UpdateHistoryStatus(id uuid.UUID, status string) error {
 
 func (r *rewardRepo) Create(reward *entity.Reward) error {
 	return r.db.Create(reward).Error
+}
+
+// Implementasi
+func (r *rewardRepo) Update(reward *entity.Reward) error {
+	// Gunakan Updates untuk memperbarui field yang berubah saja
+	return r.db.Model(reward).Where("reward_id = ?", reward.RewardID).Updates(reward).Error
+}
+
+func (r *rewardRepo) Delete(id uuid.UUID) error {
+	return r.db.Delete(&entity.Reward{}, "reward_id = ?", id).Error
 }

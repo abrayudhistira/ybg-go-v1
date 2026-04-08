@@ -1,7 +1,9 @@
 package http
 
 import (
+	"io"
 	"net/http"
+	"strconv"
 	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/usecase"
 
@@ -130,19 +132,103 @@ func (h *RewardHandler) Reject(c *gin.Context) {
 	})
 }
 func (h *RewardHandler) Create(c *gin.Context) {
-	var input entity.Reward
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
-		return
+	// 1. Parsing data teks dari Form
+	pointCost, _ := strconv.Atoi(c.PostForm("point_cost"))
+	quantity, _ := strconv.Atoi(c.PostForm("quantity"))
+
+	reward := &entity.Reward{
+		Name:        c.PostForm("name"),
+		Description: c.PostForm("description"),
+		PointCost:   pointCost,
+		Quantity:    quantity,
+		Category:    c.PostForm("category"),
 	}
 
-	if err := h.uc.CreateReward(&input); err != nil {
+	// 2. Ambil file gambar (Opsional)
+	file, err := c.FormFile("image")
+	var img io.Reader
+	var fileName, contentType string
+
+	if err == nil {
+		// Validasi ukuran (misal 2MB)
+		if file.Size > 2*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File terlalu besar (max 2MB)"})
+			return
+		}
+
+		openedFile, _ := file.Open()
+		defer openedFile.Close()
+		img = openedFile
+		fileName = file.Filename
+		contentType = file.Header.Get("Content-Type")
+	}
+
+	// 3. Panggil Usecase
+	if err := h.uc.CreateReward(reward, img, fileName, contentType); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Reward berhasil ditambahkan ke katalog",
-		"data":    input,
+		"message": "Reward berhasil dibuat",
+		"data":    reward,
 	})
+}
+
+// PUT /api/rewards/admin/:id
+func (h *RewardHandler) Update(c *gin.Context) {
+	idStr := c.Param("id")
+	rID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format ID tidak valid"})
+		return
+	}
+
+	pointCost, _ := strconv.Atoi(c.PostForm("point_cost"))
+	quantity, _ := strconv.Atoi(c.PostForm("quantity"))
+
+	reward := &entity.Reward{
+		RewardID:    rID,
+		Name:        c.PostForm("name"),
+		Description: c.PostForm("description"),
+		PointCost:   pointCost,
+		Quantity:    quantity,
+		Category:    c.PostForm("category"),
+	}
+
+	// Handle Image Opsional
+	file, err := c.FormFile("image")
+	var img io.Reader
+	var fileName, contentType string
+	if err == nil {
+		openedFile, _ := file.Open()
+		defer openedFile.Close()
+		img = openedFile
+		fileName = file.Filename
+		contentType = file.Header.Get("Content-Type")
+	}
+
+	if err := h.uc.UpdateReward(reward, img, fileName, contentType); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Reward berhasil diperbarui", "data": reward})
+}
+
+// DELETE /api/rewards/admin/:id
+func (h *RewardHandler) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	rID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format ID tidak valid"})
+		return
+	}
+
+	if err := h.uc.DeleteReward(rID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Reward berhasil dihapus"})
 }

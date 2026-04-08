@@ -1,7 +1,13 @@
 package usecase
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"time"
 	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/repository"
 
@@ -14,7 +20,9 @@ type RewardUsecase interface {
 	GetMyHistory(userID uuid.UUID) ([]entity.RewardHistory, error)
 	ApproveClaim(historyID uuid.UUID) error
 	RejectClaim(historyID uuid.UUID, reason string) error
-	CreateReward(reward *entity.Reward) error
+	CreateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error
+	UpdateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error
+	DeleteReward(id uuid.UUID) error
 }
 
 type rewardUC struct {
@@ -158,10 +166,61 @@ func (u *rewardUC) RejectClaim(historyID uuid.UUID, reason string) error {
 	// Kita bisa manfaatkan kolom admin_note untuk isi alasan penolakan
 	return u.repo.UpdateHistoryStatus(historyID, "ditolak")
 }
-func (u *rewardUC) CreateReward(reward *entity.Reward) error {
-	// Pastikan ID digenerate jika belum ada
+func (u *rewardUC) uploadToSupabase(file io.Reader, fileName, contentType string) (string, error) {
+	if file == nil {
+		return "", nil
+	}
+
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+	bucketName := "rewards" // Pastikan bucket ini ada di Supabase
+
+	remotePath := fmt.Sprintf("%d_%s", time.Now().Unix(), fileName)
+	uploadURL := fmt.Sprintf("%s/storage/v1/object/%s/%s", supabaseURL, bucketName, remotePath)
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(file)
+
+	req, _ := http.NewRequest("POST", uploadURL, buf)
+	req.Header.Set("Authorization", "Bearer "+supabaseKey)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("x-upsert", "true")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != 201 {
+		return "", fmt.Errorf("failed to upload reward image")
+	}
+
+	return fmt.Sprintf("%s/storage/v1/object/public/%s/%s", supabaseURL, bucketName, remotePath), nil
+}
+
+func (u *rewardUC) CreateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error {
+	// Upload jika ada file
+	url, err := u.uploadToSupabase(file, fileName, contentType)
+	if err == nil && url != "" {
+		reward.ImageURL = url
+	}
+
 	if reward.RewardID == uuid.Nil {
 		reward.RewardID = uuid.New()
 	}
 	return u.repo.Create(reward)
+}
+func (u *rewardUC) UpdateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error {
+	// Jika ada file baru, upload dan ganti ImageURL
+	url, err := u.uploadToSupabase(file, fileName, contentType)
+	if err == nil && url != "" {
+		reward.ImageURL = url
+	}
+	return u.repo.Update(reward)
+}
+
+func (u *rewardUC) DeleteReward(id uuid.UUID) error {
+	return u.repo.Delete(id)
 }
