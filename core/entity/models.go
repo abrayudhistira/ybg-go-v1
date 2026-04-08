@@ -40,10 +40,12 @@ type PointTotal struct {
 func (PointTotal) TableName() string { return "point_total" }
 
 type PointHistory struct {
-	PointID   uint      `gorm:"primaryKey" json:"point_id"`
-	UserID    uuid.UUID `gorm:"type:uuid" json:"user_id"`
-	Point     int       `gorm:"not null" json:"point"`
-	CreatedAt time.Time `json:"created_at"`
+	PointID   uint       `gorm:"primaryKey;column:point_id" json:"point_id"`
+	UserID    uuid.UUID  `gorm:"type:uuid;not null" json:"user_id"`
+	Point     int        `gorm:"column:point;not null" json:"point"`
+	Status    string     `gorm:"type:varchar;default:aktif" json:"status"`
+	ExpiredAt *time.Time `gorm:"column:expired_at" json:"expired_at"`
+	CreatedAt time.Time  `gorm:"column:created_at" json:"created_at"`
 }
 
 func (PointHistory) TableName() string { return "point_history" }
@@ -136,3 +138,28 @@ type CartItem struct {
 }
 
 func (CartItem) TableName() string { return "cart_items" }
+
+type Reward struct {
+	RewardID    uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"reward_id"`
+	Name        string    `gorm:"size:255;not null" json:"name"`
+	Description string    `json:"description"`
+	PointCost   int       `gorm:"not null" json:"point_cost"`
+	Quantity    int       `gorm:"not null" json:"quantity"`
+	Category    string    `gorm:"size:50" json:"category"`
+	ImageURL    string    `json:"image_url"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type RewardHistory struct {
+	HistoryID  uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"history_id"`
+	UserID     uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
+	RewardID   uuid.UUID `gorm:"type:uuid;not null" json:"reward_id"`
+	PointSpent int       `gorm:"not null" json:"point_spent"`
+	Status     string    `gorm:"size:20;default:pengajuan" json:"status"`
+	AdminNote  string    `json:"admin_note"`
+	CreatedAt  time.Time `json:"created_at"`
+
+	// Relasi (Belongs To)
+	Reward Reward `gorm:"foreignKey:RewardID" json:"reward"`
+}

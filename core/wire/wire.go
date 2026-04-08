@@ -64,6 +64,13 @@ var authSet = wire.NewSet(
 	http.NewAuthHandler, // Pastikan nama package handler kamu adalah 'http' sesuai yang lain
 )
 
+var rewardSet = wire.NewSet(
+	repository.NewRewardRepository,
+	repository.NewPointRepository, // Dibutuhkan oleh usecase reward
+	usecase.NewRewardUsecase,
+	http.NewRewardHandler,
+)
+
 func InitializeAuthHandler(db *gorm.DB) *http.AuthHandler {
 	wire.Build(authSet)
 	return nil
@@ -101,5 +108,9 @@ func InitializePointHandler(db *gorm.DB) *http.PointHandler {
 }
 func InitializeCartHandler(db *gorm.DB) *http.CartHandler {
 	wire.Build(cartSet)
+	return nil
+}
+func InitializeRewardHandler(db *gorm.DB) *http.RewardHandler {
+	wire.Build(rewardSet)
 	return nil
 }

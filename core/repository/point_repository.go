@@ -13,6 +13,7 @@ type PointRepository interface {
 	GetHistoryByUserID(uid uuid.UUID) ([]entity.PointHistory, error)
 	CreatePointTotal(pt *entity.PointTotal) error
 	GetAllTotalsWithUser() ([]entity.PointTotal, error)
+	GetPointTotal(uid uuid.UUID) (entity.PointTotal, error)
 }
 
 type pointRepo struct {
@@ -47,4 +48,10 @@ func (r *pointRepo) GetAllTotalsWithUser() ([]entity.PointTotal, error) {
 	// Kita pakai Preload("User") supaya data Namanya ikut keambil
 	err := r.db.Preload("User").Find(&totals).Error
 	return totals, err
+}
+
+func (r *pointRepo) GetPointTotal(uid uuid.UUID) (entity.PointTotal, error) {
+	var pt entity.PointTotal
+	err := r.db.Where("user_id = ?", uid).First(&pt).Error
+	return pt, err
 }

@@ -76,6 +76,14 @@ func InitializeCartHandler(db *gorm.DB) *http.CartHandler {
 	return cartHandler
 }
 
+func InitializeRewardHandler(db *gorm.DB) *http.RewardHandler {
+	rewardRepository := repository.NewRewardRepository(db)
+	pointRepository := repository.NewPointRepository(db)
+	rewardUsecase := usecase.NewRewardUsecase(rewardRepository, pointRepository)
+	rewardHandler := http.NewRewardHandler(rewardUsecase)
+	return rewardHandler
+}
+
 // wire.go:
 
 // Definisikan semua Set Dependency
@@ -94,3 +102,5 @@ var pointSet = wire.NewSet(repository.NewPointRepository, usecase.NewPointUsecas
 var cartSet = wire.NewSet(repository.NewCartRepository, repository.NewProductRepository, usecase.NewCartUsecase, http.NewCartHandler)
 
 var authSet = wire.NewSet(repository.NewAuthRepository, repository.NewUserRepository, usecase.NewAuthUsecase, http.NewAuthHandler)
+
+var rewardSet = wire.NewSet(repository.NewRewardRepository, repository.NewPointRepository, usecase.NewRewardUsecase, http.NewRewardHandler)

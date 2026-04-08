@@ -44,6 +44,7 @@ func init() {
 	pHandler := wire.InitializePointHandler(db)
 	authHandler := wire.InitializeAuthHandler(db)
 	cartHandler := wire.InitializeCartHandler(db)
+	rewardHandler := wire.InitializeRewardHandler(db)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
@@ -140,6 +141,20 @@ func init() {
 			cartGroup.POST("/", cartHandler.AddToCart)
 			cartGroup.DELETE("/:id", cartHandler.DeleteItem)
 			cartGroup.DELETE("/clear", cartHandler.ClearMyCart)
+		}
+
+		rewards := api.Group("/rewards")
+		{
+			rewards.GET("/", rewardHandler.GetAll)              // List semua reward
+			rewards.POST("/claim", rewardHandler.Claim)         // User klaim reward
+			rewards.GET("/history", rewardHandler.GetMyHistory) // History klaim user
+		}
+
+		rewardsAdmin := api.Group("/rewards")
+		rewardsAdmin.Use(middleware.RoleMiddleware("admin"))
+		{
+			rewardsAdmin.PATCH("/admin/approve", rewardHandler.Approve)
+			rewardsAdmin.PATCH("/admin/reject", rewardHandler.Reject)
 		}
 	}
 
