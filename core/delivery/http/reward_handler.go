@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"ybg-backend-go/core/entity"
 	"ybg-backend-go/core/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -126,5 +127,22 @@ func (h *RewardHandler) Reject(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Klaim telah ditolak.",
+	})
+}
+func (h *RewardHandler) Create(c *gin.Context) {
+	var input entity.Reward
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
+		return
+	}
+
+	if err := h.uc.CreateReward(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Reward berhasil ditambahkan ke katalog",
+		"data":    input,
 	})
 }

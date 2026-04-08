@@ -14,6 +14,7 @@ type RewardUsecase interface {
 	GetMyHistory(userID uuid.UUID) ([]entity.RewardHistory, error)
 	ApproveClaim(historyID uuid.UUID) error
 	RejectClaim(historyID uuid.UUID, reason string) error
+	CreateReward(reward *entity.Reward) error
 }
 
 type rewardUC struct {
@@ -156,4 +157,11 @@ func (u *rewardUC) RejectClaim(historyID uuid.UUID, reason string) error {
 	// 3. Update status jadi ditolak
 	// Kita bisa manfaatkan kolom admin_note untuk isi alasan penolakan
 	return u.repo.UpdateHistoryStatus(historyID, "ditolak")
+}
+func (u *rewardUC) CreateReward(reward *entity.Reward) error {
+	// Pastikan ID digenerate jika belum ada
+	if reward.RewardID == uuid.Nil {
+		reward.RewardID = uuid.New()
+	}
+	return u.repo.Create(reward)
 }

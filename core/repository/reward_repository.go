@@ -15,6 +15,7 @@ type RewardRepository interface {
 	UpdateQuantity(id uuid.UUID, newQty int) error
 	GetHistoryByID(id uuid.UUID) (entity.RewardHistory, error)
 	UpdateHistoryStatus(id uuid.UUID, status string) error
+	Create(reward *entity.Reward) error
 }
 
 type rewardRepo struct {
@@ -62,4 +63,8 @@ func (r *rewardRepo) UpdateHistoryStatus(id uuid.UUID, status string) error {
 	return r.db.Model(&entity.RewardHistory{}).
 		Where("history_id = ?", id).
 		Update("status", status).Error
+}
+
+func (r *rewardRepo) Create(reward *entity.Reward) error {
+	return r.db.Create(reward).Error
 }
