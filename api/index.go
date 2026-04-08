@@ -150,11 +150,11 @@ func init() {
 			rewards.GET("/history", rewardHandler.GetMyHistory) // History klaim user
 		}
 
-		rewardsAdmin := api.Group("/rewards")
+		rewardsAdmin := api.Group("/rewards/admin")
 		rewardsAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			rewardsAdmin.PATCH("/admin/approve", rewardHandler.Approve)
-			rewardsAdmin.PATCH("/admin/reject", rewardHandler.Reject)
+			rewardsAdmin.PATCH("/approve", rewardHandler.Approve)
+			rewardsAdmin.PATCH("/reject", rewardHandler.Reject)
 			rewardsAdmin.POST("/", rewardHandler.Create)
 			rewardsAdmin.PUT("/:id", rewardHandler.Update)
 			rewardsAdmin.DELETE("/:id", rewardHandler.Delete)
