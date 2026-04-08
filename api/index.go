@@ -1,13 +1,14 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"ybg-backend-go/core/delivery/http/middleware"
 	"ybg-backend-go/core/repository"
-	"ybg-backend-go/core/wire" // Pastikan import path ini benar
+	"ybg-backend-go/core/wire"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,23 +20,41 @@ import (
 var router *gin.Engine
 
 func init() {
-	_ = godotenv.Load()
+	// 1. Load ENV
+	if err := godotenv.Load(); err != nil {
+		log.Println("Note: .env file not found, using system environment variables")
+	}
 
+	// 2. Database Connection
 	dsn := os.Getenv("DB_URL")
+	if dsn == "" {
+		log.Println("CRITICAL ERROR: DB_URL is empty!")
+	}
+
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		DSN:                  dsn,
 		PreferSimpleProtocol: true,
 	}), &gorm.Config{
 		PrepareStmt: false,
 	})
+
 	if err != nil {
+		log.Printf("FATAL DATABASE ERROR: %v\n", err)
 		return
 	}
+	log.Println("SUCCESS: Database connected")
 
-	// Seed Admin jika diperlukan
+	// 3. Panic Recovery for Initialization
+	// Jika Wire gagal karena ketidakcocokan parameter, log akan muncul di sini
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("PANIC RECOVERED during Wire/Routes init: %v\n", r)
+		}
+	}()
+
+	// 4. Seeding & Dependency Injection
 	repository.SeedAdmin(db)
 
-	// Panggil Injector dari Wire
 	userHandler := wire.InitializeUserHandler(db)
 	productHandler := wire.InitializeProductHandler(db)
 	newsHandler := wire.InitializeNewsHandler(db)
@@ -46,8 +65,13 @@ func init() {
 	cartHandler := wire.InitializeCartHandler(db)
 	rewardHandler := wire.InitializeRewardHandler(db)
 
+	// 5. Gin Setup
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
+	r := gin.New() // Menggunakan New() untuk kontrol middleware penuh
+
+	// Middleware bawaan untuk logging setiap request ke terminal
+	r.Use(gin.Logger())
+	r.Use(gin.Recovery())
 
 	r.Use(cors.New(cors.Config{
 		AllowAllOrigins:  true,
@@ -77,7 +101,7 @@ func init() {
 	api := r.Group("/api")
 	api.Use(middleware.AuthMiddleware())
 	{
-		// Groups & Handlers
+		// Brand
 		brandAdmin := api.Group("/brand")
 		api.GET("/brand", brandHandler.GetAll)
 		brandAdmin.Use(middleware.RoleMiddleware("admin"))
@@ -87,6 +111,7 @@ func init() {
 			brandAdmin.PUT("/admin/:id", brandHandler.Update)
 		}
 
+		// Category
 		categoryAdmin := api.Group("/category")
 		api.GET("/category", categoryHandler.GetAll)
 		categoryAdmin.Use(middleware.RoleMiddleware("admin"))
@@ -95,10 +120,10 @@ func init() {
 			categoryAdmin.DELETE("/admin/:id", categoryHandler.Delete)
 		}
 
+		// Product
 		api.GET("/products", productHandler.GetAll)
 		api.GET("/products/:id", productHandler.GetByID)
 		api.GET("/products/search", productHandler.Search)
-
 		productAdmin := api.Group("/products")
 		productAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
@@ -107,6 +132,7 @@ func init() {
 			productAdmin.DELETE("/admin/:id", productHandler.Delete)
 		}
 
+		// Points
 		points := api.Group("/points")
 		{
 			points.GET("/history", pHandler.GetHistory)
@@ -114,6 +140,7 @@ func init() {
 			points.GET("/admin/all", middleware.RoleMiddleware("admin"), pHandler.GetAllSummaries)
 		}
 
+		// News
 		api.GET("/news", newsHandler.GetAll)
 		newsAdmin := api.Group("/news")
 		newsAdmin.Use(middleware.RoleMiddleware("admin"))
@@ -125,6 +152,7 @@ func init() {
 
 		api.GET("/admin/users", middleware.RoleMiddleware("admin"), userHandler.GetAll)
 
+		// Profile
 		userGroup := api.Group("/profile")
 		{
 			userGroup.GET("/:id", userHandler.GetByID)
@@ -132,9 +160,8 @@ func init() {
 			userGroup.POST("/request-change-email", authHandler.RequestChangeEmail)
 			userGroup.POST("/verify-change-email", authHandler.VerifyChangeEmail)
 		}
-		// api.GET("/profile/:id", userHandler.GetByID)
-		// api.PUT("/profile/:id", userHandler.Update)
 
+		// Cart
 		cartGroup := api.Group("/cart")
 		{
 			cartGroup.GET("/", cartHandler.GetMyCart)
@@ -143,13 +170,15 @@ func init() {
 			cartGroup.DELETE("/clear", cartHandler.ClearMyCart)
 		}
 
+		// Rewards User
 		rewards := api.Group("/rewards")
 		{
-			rewards.GET("/", rewardHandler.GetAll)              // List semua reward
-			rewards.POST("/claim", rewardHandler.Claim)         // User klaim reward
-			rewards.GET("/history", rewardHandler.GetMyHistory) // History klaim user
+			rewards.GET("/", rewardHandler.GetAll)
+			rewards.POST("/claim", rewardHandler.Claim)
+			rewards.GET("/history", rewardHandler.GetMyHistory)
 		}
 
+		// Rewards Admin
 		rewardsAdmin := api.Group("/rewards/admin")
 		rewardsAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
@@ -162,11 +191,17 @@ func init() {
 	}
 
 	router = r
+	log.Println("SUCCESS: Router fully initialized")
 }
 
+// Handler is the entry point for Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
+	// Logging request info ke terminal Vercel/Local
+	log.Printf("INCOMING REQUEST: %s %s", r.Method, r.URL.Path)
+
 	if router == nil {
-		http.Error(w, "Router not initialized", http.StatusInternalServerError)
+		log.Println("ERROR: Router is NIL. This is likely due to a DB failure or init() panic.")
+		http.Error(w, "Internal Server Error: Router not initialized. Check logs.", http.StatusInternalServerError)
 		return
 	}
 	router.ServeHTTP(w, r)
