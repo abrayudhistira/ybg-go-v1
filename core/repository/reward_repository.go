@@ -14,7 +14,7 @@ type RewardRepository interface {
 	GetHistoryByUserID(userID uuid.UUID) ([]entity.RewardHistory, error)
 	UpdateQuantity(id uuid.UUID, newQty int) error
 	GetHistoryByID(id uuid.UUID) (entity.RewardHistory, error)
-	UpdateHistoryStatus(id uuid.UUID, status string) error
+	UpdateHistoryStatus(id uuid.UUID, status string, note string) error
 	Create(reward *entity.Reward) error
 	Update(reward *entity.Reward) error
 	Delete(id uuid.UUID) error
@@ -62,10 +62,13 @@ func (r *rewardRepo) GetHistoryByID(id uuid.UUID) (entity.RewardHistory, error) 
 	return history, err
 }
 
-func (r *rewardRepo) UpdateHistoryStatus(id uuid.UUID, status string) error {
+func (r *rewardRepo) UpdateHistoryStatus(id uuid.UUID, status string, note string) error {
 	return r.db.Model(&entity.RewardHistory{}).
 		Where("history_id = ?", id).
-		Update("status", status).Error
+		Updates(map[string]interface{}{
+			"status":     status,
+			"admin_note": note, // Akan terupdate meskipun note kosong/nil
+		}).Error
 }
 
 func (r *rewardRepo) Create(reward *entity.Reward) error {
@@ -85,12 +88,15 @@ func (r *rewardRepo) GetAllHistories(limit, offset int) ([]entity.RewardHistory,
 	var histories []entity.RewardHistory
 	var total int64
 
-	// Hitung total data untuk keperluan frontend (total pages)
+	// 1. Hitung total data
 	r.db.Model(&entity.RewardHistory{}).Count(&total)
 
-	// Ambil data dengan limit dan offset
+	// 2. Ambil data dengan Preload dan Select spesifik untuk User
 	err := r.db.Preload("Reward").
-		Preload("User").
+		Preload("User", func(db *gorm.DB) *gorm.DB {
+			// Pilih field yang mau ditampilkan saja (kecuali password)
+			return db.Select("user_id", "name", "email", "profile_picture", "role", "phone", "gender", "created_at")
+		}).
 		Preload("User.PointTotal").
 		Limit(limit).
 		Offset(offset).

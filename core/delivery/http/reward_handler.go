@@ -83,6 +83,7 @@ func (h *RewardHandler) GetMyHistory(c *gin.Context) {
 func (h *RewardHandler) Approve(c *gin.Context) {
 	var input struct {
 		HistoryID string `json:"history_id" binding:"required"`
+		Note      string `json:"note"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -96,7 +97,7 @@ func (h *RewardHandler) Approve(c *gin.Context) {
 		return
 	}
 
-	if err := h.uc.ApproveClaim(hID); err != nil {
+	if err := h.uc.ApproveClaim(hID, input.Note); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -132,7 +133,17 @@ func (h *RewardHandler) Reject(c *gin.Context) {
 	})
 }
 func (h *RewardHandler) Create(c *gin.Context) {
-	// 1. Parsing data teks dari Form
+	category := c.PostForm("category")
+	validCategories := map[string]bool{
+		"voucher": true, "bag": true, "footwear": true,
+		"accessoris": true, "hat": true, "belt": true,
+	}
+
+	if !validCategories[category] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Kategori tidak valid. Pilih: voucher, bag, footwear, accessoris, hat, belt, atau dll"})
+		return
+	}
+
 	pointCost, _ := strconv.Atoi(c.PostForm("point_cost"))
 	quantity, _ := strconv.Atoi(c.PostForm("quantity"))
 
@@ -141,21 +152,18 @@ func (h *RewardHandler) Create(c *gin.Context) {
 		Description: c.PostForm("description"),
 		PointCost:   pointCost,
 		Quantity:    quantity,
-		Category:    c.PostForm("category"),
+		Category:    category,
 	}
 
-	// 2. Ambil file gambar (Opsional)
 	file, err := c.FormFile("image")
 	var img io.Reader
 	var fileName, contentType string
 
 	if err == nil {
-		// Validasi ukuran (misal 2MB)
-		if file.Size > 2*1024*1024 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "File terlalu besar (max 2MB)"})
+		if file.Size > 1*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File terlalu besar (max 1MB)"})
 			return
 		}
-
 		openedFile, _ := file.Open()
 		defer openedFile.Close()
 		img = openedFile
@@ -163,16 +171,12 @@ func (h *RewardHandler) Create(c *gin.Context) {
 		contentType = file.Header.Get("Content-Type")
 	}
 
-	// 3. Panggil Usecase
 	if err := h.uc.CreateReward(reward, img, fileName, contentType); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Reward berhasil dibuat",
-		"data":    reward,
-	})
+	c.JSON(http.StatusCreated, gin.H{"message": "Reward berhasil dibuat", "data": reward})
 }
 
 // PUT /api/rewards/admin/:id
@@ -181,6 +185,18 @@ func (h *RewardHandler) Update(c *gin.Context) {
 	rID, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format ID tidak valid"})
+		return
+	}
+
+	// Validasi Category
+	category := c.PostForm("category")
+	validCategories := map[string]bool{
+		"voucher": true, "bag": true, "footwear": true,
+		"accessoris": true, "hat": true, "belt": true,
+	}
+
+	if category != "" && !validCategories[category] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Kategori tidak valid"})
 		return
 	}
 
@@ -193,14 +209,18 @@ func (h *RewardHandler) Update(c *gin.Context) {
 		Description: c.PostForm("description"),
 		PointCost:   pointCost,
 		Quantity:    quantity,
-		Category:    c.PostForm("category"),
+		Category:    category,
 	}
 
-	// Handle Image Opsional
+	// Handle Image
 	file, err := c.FormFile("image")
 	var img io.Reader
 	var fileName, contentType string
 	if err == nil {
+		if file.Size > 1*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File terlalu besar (max 1MB)"})
+			return
+		}
 		openedFile, _ := file.Open()
 		defer openedFile.Close()
 		img = openedFile
@@ -233,25 +253,25 @@ func (h *RewardHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Reward berhasil dihapus"})
 }
 func (h *RewardHandler) GetAllUserHistory(c *gin.Context) {
-    // Ambil query param, contoh: /api/rewards/admin/history/all?page=1&size=10
-    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-    size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
+	// Ambil query param, contoh: /api/rewards/admin/history/all?page=1&size=10
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
 
-    histories, total, err := h.uc.GetAllUserHistory(page, size)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": "Gagal mengambil riwayat klaim: " + err.Error(),
-        })
-        return
-    }
+	histories, total, err := h.uc.GetAllUserHistory(page, size)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Gagal mengambil riwayat klaim: " + err.Error(),
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "status": "success",
-        "data":   histories,
-        "meta": gin.H{
-            "total_data": total,
-            "page":       page,
-            "size":       size,
-        },
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   histories,
+		"meta": gin.H{
+			"total_data": total,
+			"page":       page,
+			"size":       size,
+		},
+	})
 }

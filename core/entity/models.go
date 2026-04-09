@@ -145,22 +145,26 @@ type Reward struct {
 	Description string    `json:"description"`
 	PointCost   int       `gorm:"not null" json:"point_cost"`
 	Quantity    int       `gorm:"not null" json:"quantity"`
-	Category    string    `gorm:"size:50" json:"category"`
+	Category    string    `gorm:"type:reward_category;not null;default:voucher" json:"category"`
 	ImageURL    string    `json:"image_url"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `gorm:"column:created_at;not null;default:now()" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"column:updated_at;not null;default:now();autoUpdateTime" json:"updated_at"`
 }
+
+func (Reward) TableName() string { return "rewards" }
 
 type RewardHistory struct {
 	HistoryID  uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"history_id"`
 	UserID     uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
 	RewardID   uuid.UUID `gorm:"type:uuid;not null" json:"reward_id"`
 	PointSpent int       `gorm:"not null" json:"point_spent"`
-	Status     string    `gorm:"size:20;default:pengajuan" json:"status"`
+	Status     string    `gorm:"type:reward_history_status;not null;default:pengajuan" json:"status"`
 	AdminNote  string    `json:"admin_note"`
-	CreatedAt  time.Time `json:"created_at"`
+	CreatedAt  time.Time `gorm:"column:created_at;not null;default:now()" json:"created_at"`
 
 	// Relasi (Belongs To)
-	Reward Reward `gorm:"foreignKey:RewardID" json:"reward"`
+	Reward Reward `gorm:"foreignKey:RewardID;references:RewardID" json:"reward"`
 	User   User   `gorm:"foreignKey:UserID;references:UserID" json:"user"`
 }
+
+func (RewardHistory) TableName() string { return "reward_histories" }

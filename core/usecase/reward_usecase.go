@@ -18,7 +18,7 @@ type RewardUsecase interface {
 	GetAllRewards() ([]entity.Reward, error)
 	ClaimReward(userID uuid.UUID, rewardID uuid.UUID) error
 	GetMyHistory(userID uuid.UUID) ([]entity.RewardHistory, error)
-	ApproveClaim(historyID uuid.UUID) error
+	ApproveClaim(historyID uuid.UUID, note string) error
 	RejectClaim(historyID uuid.UUID, reason string) error
 	CreateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error
 	UpdateReward(reward *entity.Reward, file io.Reader, fileName, contentType string) error
@@ -114,7 +114,7 @@ func (u *rewardUC) ClaimReward(userID uuid.UUID, rewardID uuid.UUID) error {
 func (u *rewardUC) GetMyHistory(userID uuid.UUID) ([]entity.RewardHistory, error) {
 	return u.repo.GetHistoryByUserID(userID)
 }
-func (u *rewardUC) ApproveClaim(historyID uuid.UUID) error {
+func (u *rewardUC) ApproveClaim(historyID uuid.UUID, note string) error {
 	// 1. Ambil data history klaim
 	history, err := u.repo.GetHistoryByID(historyID)
 	if err != nil {
@@ -140,10 +140,12 @@ func (u *rewardUC) ApproveClaim(historyID uuid.UUID) error {
 	_ = u.pointRepo.UpdateTotal(history.UserID, -history.PointSpent)
 	_ = u.repo.UpdateQuantity(history.RewardID, reward.Quantity-1)
 
-	// 5. Update Status History & Catat Point History
-	history.Status = "acc"
-	_ = u.repo.UpdateHistoryStatus(historyID, "acc")
+	// 5. Update Status ke "acc" dengan Note
+	if err := u.repo.UpdateHistoryStatus(historyID, "acc", note); err != nil {
+		return err
+	}
 
+	// 6. Catat di Point History sebagai poin keluar (status: 'used' atau 'aktif')
 	pointEntry := &entity.PointHistory{
 		UserID: history.UserID,
 		Point:  -history.PointSpent,
@@ -165,7 +167,7 @@ func (u *rewardUC) RejectClaim(historyID uuid.UUID, reason string) error {
 
 	// 3. Update status jadi ditolak
 	// Kita bisa manfaatkan kolom admin_note untuk isi alasan penolakan
-	return u.repo.UpdateHistoryStatus(historyID, "ditolak")
+	return u.repo.UpdateHistoryStatus(historyID, "ditolak", reason)
 }
 func (u *rewardUC) uploadToSupabase(file io.Reader, fileName, contentType string) (string, error) {
 	if file == nil {
