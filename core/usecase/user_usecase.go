@@ -187,12 +187,17 @@ func (u *userUC) RegisterUser(user *entity.User) error {
 	}
 
 	// 6. Kirim Email secara Asynchronous (pakai 'go' agar register tidak terasa lambat)
-	go func() {
-		err := utils.SendOTPEmail(user.Email, otp)
-		if err != nil {
-			fmt.Printf("Gagal kirim email ke %s: %v\n", user.Email, err)
-		}
-	}()
+	// go func() {
+	// 	err := utils.SendOTPEmail(user.Email, otp)
+	// 	if err != nil {
+	// 		fmt.Printf("Gagal kirim email ke %s: %v\n", user.Email, err)
+	// 	}
+	// }()
+	err = utils.SendOTPEmail(user.Email, otp)
+	if err != nil {
+		fmt.Printf("Gagal kirim email ke %s: %v\n", user.Email, err)
+		// Opsi: return fmt.Errorf("user terdaftar tapi email gagal dikirim: %v", err)
+	}
 
 	return nil
 }
