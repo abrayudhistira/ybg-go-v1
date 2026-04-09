@@ -9,10 +9,11 @@ import (
 // --- USER & LOYALTY ENTITIES ---
 
 type User struct {
-	UserID         uuid.UUID      `gorm:"type:uuid;primaryKey" json:"user_id"`
-	Name           string         `gorm:"size:100;not null" json:"name" binding:"required,min=3"`
-	Email          string         `gorm:"size:100;unique;not null" json:"email" binding:"required,email"`
-	Password       string         `gorm:"size:255;not null" json:"-"`
+	UserID uuid.UUID `gorm:"type:uuid;primaryKey" json:"user_id"`
+	Name   string    `gorm:"size:100;not null" json:"name" binding:"required,min=3"`
+	Email  string    `gorm:"size:100;unique;not null" json:"email" binding:"required,email"`
+	// Password       string         `gorm:"size:255;not null" json:"-"`
+	Password       string         `gorm:"size:255;not null" json:"password"`
 	ProfilePicture string         `json:"profile_picture"`
 	Birth          time.Time      `gorm:"not null" json:"birth" binding:"required"`
 	Role           string         `gorm:"type:user_role;not null;default:customer" json:"role"`
