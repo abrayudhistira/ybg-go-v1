@@ -127,3 +127,20 @@ func (h *AuthHandler) VerifyRegistration(c *gin.Context) {
 		"message": "Akun berhasil diverifikasi! Sekarang kamu bisa login.",
 	})
 }
+func (h *AuthHandler) ResendOTP(c *gin.Context) {
+	var input struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email wajib diisi"})
+		return
+	}
+
+	if err := h.uc.ResendVerificationOTP(input.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Kode verifikasi baru telah dikirim ke email kamu"})
+}

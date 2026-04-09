@@ -215,10 +215,30 @@ func (u *userUC) generateRandomOTP(max int) string {
 func (u *userUC) FetchAllUsers() ([]entity.User, error)            { return u.repo.GetAll() }
 func (u *userUC) GetUserProfile(id uuid.UUID) (entity.User, error) { return u.repo.GetByID(id) }
 func (u *userUC) RemoveUser(id uuid.UUID) error                    { return u.repo.Delete(id) }
+
+//	func (u *userUC) Login(email, password string) (entity.User, error) {
+//		user, err := u.repo.GetByEmail(email)
+//		if err != nil || !utils.CheckPasswordHash(password, user.Password) {
+//			return entity.User{}, errors.New("invalid credentials")
+//		}
+//		return user, nil
+//	}
 func (u *userUC) Login(email, password string) (entity.User, error) {
 	user, err := u.repo.GetByEmail(email)
-	if err != nil || !utils.CheckPasswordHash(password, user.Password) {
-		return entity.User{}, errors.New("invalid credentials")
+	// 1. Cek keberadaan user
+	if err != nil {
+		return entity.User{}, errors.New("email atau password salah")
 	}
+
+	// 2. Cek status verifikasi (Tambahkan di sini)
+	if !user.IsVerified {
+		return entity.User{}, errors.New("akun anda belum diverifikasi, silakan cek email untuk kode OTP")
+	}
+
+	// 3. Cek password
+	if !utils.CheckPasswordHash(password, user.Password) {
+		return entity.User{}, errors.New("email atau password salah")
+	}
+
 	return user, nil
 }

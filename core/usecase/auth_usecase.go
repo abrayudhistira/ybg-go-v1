@@ -18,6 +18,7 @@ type AuthUsecase interface {
 	RequestEmailUpdateOTP(newEmail string) error
 	VerifyAndChangeEmail(userID uuid.UUID, email, otp string) error
 	VerifyAccount(email, otp string) error
+	ResendVerificationOTP(email string) error
 }
 
 type authUC struct {
@@ -180,4 +181,32 @@ func (u *authUC) VerifyAccount(email, otp string) error {
 
 	// 5. Hapus OTP dari database karena sudah berhasil digunakan
 	return u.authRepo.DeleteOTP(email)
+}
+
+func (u *authUC) ResendVerificationOTP(email string) error {
+	// 1. Pastikan user ada
+	user, err := u.userRepo.GetByEmail(email)
+	if err != nil {
+		return errors.New("email tidak terdaftar")
+	}
+
+	// 2. Cek apakah sudah verified? Kalau sudah, tidak perlu kirim lagi
+	if user.IsVerified {
+		return errors.New("akun ini sudah terverifikasi, silakan langsung login")
+	}
+
+	// 3. Generate & Simpan OTP Baru (Gunakan helper generateRandomOTP yang sudah kamu buat)
+	otp := u.generateRandomOTP(6)
+	resetData := &entity.PasswordReset{
+		Email:     email,
+		OTP:       otp,
+		ExpiredAt: time.Now().Add(15 * time.Minute),
+	}
+
+	if err := u.authRepo.SaveOTP(resetData); err != nil {
+		return err
+	}
+
+	// 4. Kirim Email
+	return utils.SendOTPEmail(email, otp)
 }
