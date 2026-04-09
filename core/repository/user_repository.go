@@ -16,6 +16,7 @@ type UserRepository interface {
 	GetByEmail(email string) (entity.User, error)
 	UpdatePasswordByEmail(email string, hashedPassword string) error
 	UpdateEmail(id uuid.UUID, newEmail string) error
+	VerifyUser(id uuid.UUID) error
 }
 
 type userRepo struct {
@@ -83,4 +84,7 @@ func (r *userRepo) UpdatePasswordByEmail(email string, hashedPassword string) er
 }
 func (r *userRepo) UpdateEmail(id uuid.UUID, newEmail string) error {
 	return r.db.Model(&entity.User{}).Where("user_id = ?", id).Update("email", newEmail).Error
+}
+func (r *userRepo) VerifyUser(id uuid.UUID) error {
+	return r.db.Model(&entity.User{}).Where("user_id = ?", id).Update("is_verified", true).Error
 }

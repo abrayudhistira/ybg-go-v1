@@ -100,3 +100,30 @@ func (h *AuthHandler) VerifyChangeEmail(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Email berhasil diperbarui!"})
 }
+
+// api/http/auth_handler.go
+
+func (h *AuthHandler) VerifyRegistration(c *gin.Context) {
+	var input struct {
+		Email string `json:"email" binding:"required,email"`
+		OTP   string `json:"otp" binding:"required"`
+	}
+
+	// Validasi JSON body
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email dan OTP wajib diisi dengan format yang benar",
+		})
+		return
+	}
+
+	// Panggil Usecase untuk verifikasi
+	if err := h.uc.VerifyAccount(input.Email, input.OTP); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Akun berhasil diverifikasi! Sekarang kamu bisa login.",
+	})
+}

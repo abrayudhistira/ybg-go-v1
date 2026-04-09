@@ -17,6 +17,7 @@ type AuthUsecase interface {
 	VerifyOTPAndResetPassword(email, otp, newPassword string) error
 	RequestEmailUpdateOTP(newEmail string) error
 	VerifyAndChangeEmail(userID uuid.UUID, email, otp string) error
+	VerifyAccount(email, otp string) error
 }
 
 type authUC struct {
@@ -148,4 +149,35 @@ func (u *authUC) generateRandomOTP(max int) string {
 		b[i] = table[int(b[i])%len(table)]
 	}
 	return string(b)
+}
+
+// core/usecase/auth_usecase.go
+
+func (u *authUC) VerifyAccount(email, otp string) error {
+	// 1. Cek apakah OTP valid di tabel password_resets
+	reset, err := u.authRepo.CheckOTP(email, otp)
+	if err != nil {
+		return errors.New("kode OTP salah atau tidak ditemukan")
+	}
+
+	// 2. Cek apakah OTP sudah kadaluwarsa
+	if time.Now().After(reset.ExpiredAt) {
+		u.authRepo.DeleteOTP(email) // Bersihkan yang expired
+		return errors.New("kode OTP sudah kadaluwarsa, silakan minta kode baru")
+	}
+
+	// 3. Ambil data user berdasarkan email
+	user, err := u.userRepo.GetByEmail(email)
+	if err != nil {
+		return errors.New("user tidak ditemukan")
+	}
+
+	// 4. Update status is_verified menjadi true
+	// Kita gunakan repository user untuk mengupdate kolom is_verified
+	if err := u.userRepo.VerifyUser(user.UserID); err != nil {
+		return errors.New("gagal memverifikasi akun")
+	}
+
+	// 5. Hapus OTP dari database karena sudah berhasil digunakan
+	return u.authRepo.DeleteOTP(email)
 }

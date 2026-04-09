@@ -28,7 +28,8 @@ func InitializeAuthHandler(db *gorm.DB) *http.AuthHandler {
 func InitializeUserHandler(db *gorm.DB) *http.UserHandler {
 	userRepository := repository.NewUserRepository(db)
 	pointRepository := repository.NewPointRepository(db)
-	userUsecase := usecase.NewUserUsecase(userRepository, pointRepository)
+	authRepository := repository.NewAuthRepository(db)
+	userUsecase := usecase.NewUserUsecase(userRepository, pointRepository, authRepository)
 	userHandler := http.NewUserHandler(userUsecase)
 	return userHandler
 }
@@ -87,7 +88,7 @@ func InitializeRewardHandler(db *gorm.DB) *http.RewardHandler {
 // wire.go:
 
 // Definisikan semua Set Dependency
-var userSet = wire.NewSet(repository.NewUserRepository, repository.NewPointRepository, usecase.NewUserUsecase, http.NewUserHandler)
+var userSet = wire.NewSet(repository.NewUserRepository, repository.NewPointRepository, repository.NewAuthRepository, usecase.NewUserUsecase, http.NewUserHandler)
 
 var productSet = wire.NewSet(repository.NewProductRepository, usecase.NewProductUsecase, http.NewProductHandler)
 

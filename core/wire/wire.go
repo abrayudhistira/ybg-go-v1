@@ -16,6 +16,7 @@ import (
 var userSet = wire.NewSet(
 	repository.NewUserRepository,
 	repository.NewPointRepository,
+	repository.NewAuthRepository,
 	usecase.NewUserUsecase,
 	http.NewUserHandler,
 )

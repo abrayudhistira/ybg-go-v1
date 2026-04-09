@@ -96,6 +96,7 @@ func init() {
 	{
 		authGroup.POST("/forgot-password", authHandler.ForgotPassword)
 		authGroup.POST("/reset-password", authHandler.ResetPassword)
+		authGroup.POST("/verify-registration", authHandler.VerifyRegistration)
 	}
 
 	api := r.Group("/api")

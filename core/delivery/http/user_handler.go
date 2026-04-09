@@ -50,26 +50,26 @@ func (h *UserHandler) RegisterRoutes(r *gin.Engine) {
 func (h *UserHandler) Create(c *gin.Context) {
 	var u entity.User
 
-	// 1. Validasi otomatis via struct tags (email, min length, dll)
+	// Binding akan otomatis mengecek tag binding:"required" di struct entity.User
+	// Jika Name, Email, Birth, Phone, atau Gender kosong, JSON ini akan langsung return error 400
 	if err := c.ShouldBindJSON(&u); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Validasi gagal",
-			"details": err.Error(), // Nanti muncul: "Email must be a valid email"
+			"error":   "Semua field (Name, Email, Password, Birth, Phone, Gender) wajib diisi",
+			"details": err.Error(),
 		})
 		return
 	}
 
-	// 2. Sanitasi Input (Trim spaces)
+	// Sanitasi standar
 	u.Email = strings.ToLower(strings.TrimSpace(u.Email))
 	u.Name = strings.TrimSpace(u.Name)
 
 	if err := h.uc.RegisterUser(&u); err != nil {
-		// Cek jika email sudah terdaftar (Unique Constraint)
-		if strings.Contains(err.Error(), "duplicate key") {
+		if strings.Contains(err.Error(), "already in use") {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email sudah terdaftar"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal registrasi"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -146,7 +146,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		// Parse string YYYY-MM-DD ke time.Time
 		t, err := time.Parse("2006-01-02", birthStr)
 		if err == nil {
-			u.Birth = &t // Pastikan di entity User, Birth adalah *time.Time
+			u.Birth = t
 		}
 	}
 	// 2. Handling File Gambar
