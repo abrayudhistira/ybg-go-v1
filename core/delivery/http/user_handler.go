@@ -194,6 +194,41 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
+// func (h *UserHandler) Login(c *gin.Context) {
+// 	var req struct {
+// 		Email    string `json:"email" binding:"required,email"`
+// 		Password string `json:"password" binding:"required"`
+// 	}
+
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Periksa Kembali Email Anda!"})
+// 		return
+// 	}
+
+// 	user, err := h.uc.Login(req.Email, req.Password)
+// 	if err != nil {
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+// 		return
+// 	}
+// 	token, err := utils.GenerateToken(user.UserID, user.Role)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+// 		return
+// 	}
+
+//		// TODO: Generate JWT token here and return it
+//		// c.JSON(http.StatusOK, gin.H{"message": "Login successful", "user": user})
+//		c.JSON(http.StatusOK, gin.H{
+//			"message": "Login successful",
+//			"token":   token,
+//			"user": gin.H{ // Kita bentuk ulang objek user-nya di sini
+//				"user_id": user.UserID,
+//				"name":    user.Name,
+//				"email":   user.Email,
+//				"role":    user.Role,
+//			},
+//		})
+//	}
 func (h *UserHandler) Login(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -201,27 +236,42 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Periksa Kembali Email Anda!"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format email atau password tidak valid"})
 		return
 	}
 
 	user, err := h.uc.Login(req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
-		return
-	}
-	token, err := utils.GenerateToken(user.UserID, user.Role)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		// Ambil pesan error langsung dari Usecase
+		errMsg := err.Error()
+
+		// Skenario: User belum verifikasi
+		if strings.Contains(errMsg, "belum diverifikasi") {
+			c.JSON(http.StatusForbidden, gin.H{ // Gunakan 403 Forbidden agar beda dengan 401 Unauthorized
+				"error": errMsg,
+				"code":  "USER_NOT_VERIFIED", // Berikan kode unik agar frontend mudah ngecek
+			})
+			return
+		}
+
+		// Skenario: Salah email/password
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Email atau password salah",
+			"code":  "INVALID_CREDENTIALS",
+		})
 		return
 	}
 
-	// TODO: Generate JWT token here and return it
-	// c.JSON(http.StatusOK, gin.H{"message": "Login successful", "user": user})
+	token, err := utils.GenerateToken(user.UserID, user.Role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat sesi login"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"token":   token,
-		"user": gin.H{ // Kita bentuk ulang objek user-nya di sini
+		"user": gin.H{
 			"user_id": user.UserID,
 			"name":    user.Name,
 			"email":   user.Email,
