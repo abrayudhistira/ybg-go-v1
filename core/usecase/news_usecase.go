@@ -39,14 +39,36 @@ func (u *newsUC) CreateNews(n *entity.News, file io.Reader, fileName, contentTyp
 	return u.repo.Create(n)
 }
 
+// func (u *newsUC) UpdateNews(n *entity.News, file io.Reader, fileName, contentType string) error {
+// 	if file != nil {
+// 		imgURL, err := u.uploadToSupabase(file, fileName, contentType)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		n.ImageURL = imgURL
+// 	}
+// 	return u.repo.Update(n)
+// }
+
 func (u *newsUC) UpdateNews(n *entity.News, file io.Reader, fileName, contentType string) error {
+	// 1. Ambil data lama dari database untuk mendapatkan ImageURL yang sudah ada
+	existingNews, err := u.repo.GetByID(n.NewsID)
+	if err != nil {
+		return err
+	}
+
+	// 2. Jika ada file baru, upload dan ganti URL-nya
 	if file != nil {
 		imgURL, err := u.uploadToSupabase(file, fileName, contentType)
 		if err != nil {
 			return err
 		}
 		n.ImageURL = imgURL
+	} else {
+		// 3. JIKA TIDAK ADA FILE BARU, gunakan ImageURL yang lama
+		n.ImageURL = existingNews.ImageURL
 	}
+
 	return u.repo.Update(n)
 }
 
