@@ -99,6 +99,7 @@ type News struct {
 	Status      string    `gorm:"type:news_status" json:"status"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	CreatedAt   time.Time `json:"created_at"`
+	ImageURL    string    `json:"image_url"`
 }
 
 func (News) TableName() string { return "news" }

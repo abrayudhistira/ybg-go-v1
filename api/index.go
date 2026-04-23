@@ -45,7 +45,6 @@ func init() {
 	log.Println("SUCCESS: Database connected")
 
 	// 3. Panic Recovery for Initialization
-	// Jika Wire gagal karena ketidakcocokan parameter, log akan muncul di sini
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("PANIC RECOVERED during Wire/Routes init: %v\n", r)
@@ -67,9 +66,8 @@ func init() {
 
 	// 5. Gin Setup
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.New() // Menggunakan New() untuk kontrol middleware penuh
+	r := gin.New()
 
-	// Middleware bawaan untuk logging setiap request ke terminal
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
@@ -82,16 +80,17 @@ func init() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// --- Routes Setup ---
+	// --- GLOBAL ROUTES ---
 	r.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/health")
 	})
-	r.POST("/register", userHandler.Create)
-	r.POST("/login", userHandler.Login)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "UP", "database": "connected"})
 	})
 
+	// --- AUTH & USER REGISTRATION ---
+	r.POST("/register", userHandler.Create)
+	r.POST("/login", userHandler.Login)
 	authGroup := r.Group("/auth")
 	{
 		authGroup.POST("/forgot-password", authHandler.ForgotPassword)
@@ -100,41 +99,67 @@ func init() {
 		authGroup.POST("/resend-otp", authHandler.ResendOTP)
 	}
 
+	// --- API PROTECTED AREA ---
 	api := r.Group("/api")
-	api.Use(middleware.AuthMiddleware())
 	{
-		// Brand
-		brandAdmin := api.Group("/brand")
-		api.GET("/brand", brandHandler.GetAll)
-		brandAdmin.Use(middleware.RoleMiddleware("admin"))
-		{
-			brandAdmin.POST("/admin", brandHandler.Create)
-			brandAdmin.DELETE("/admin/:id", brandHandler.Delete)
-			brandAdmin.PUT("/admin/:id", brandHandler.Update)
-		}
-
-		// Category
-		categoryAdmin := api.Group("/category")
-		api.GET("/category", categoryHandler.GetAll)
-		categoryAdmin.Use(middleware.RoleMiddleware("admin"))
-		{
-			categoryAdmin.POST("/admin", categoryHandler.Create)
-			categoryAdmin.DELETE("/admin/:id", categoryHandler.Delete)
-		}
-
-		// Product
+		// PUBLIC GET (No Auth Needed for Reading)
 		api.GET("/products", productHandler.GetAll)
 		api.GET("/products/:id", productHandler.GetByID)
 		api.GET("/products/search", productHandler.Search)
-		productAdmin := api.Group("/products")
-		productAdmin.Use(middleware.RoleMiddleware("admin"))
+		api.GET("/news", newsHandler.GetAll)
+		api.GET("/news/:id", newsHandler.GetByID)
+		api.GET("/brand", brandHandler.GetAll)
+		api.GET("/category", categoryHandler.GetAll)
+
+		// AUTHENTICATION MIDDLEWARE STARTS HERE
+		api.Use(middleware.AuthMiddleware())
+
+		// News Management (Admin Only)
+		newsAdmin := api.Group("/news/admin")
+		newsAdmin.Use(middleware.RoleMiddleware("admin"))
 		{
-			productAdmin.POST("/admin", productHandler.Create)
-			productAdmin.PUT("/admin/:id", productHandler.Update)
-			productAdmin.DELETE("/admin/:id", productHandler.Delete)
+			newsAdmin.POST("/", newsHandler.Create)
+			newsAdmin.PUT("/:id", newsHandler.Update)
+			newsAdmin.DELETE("/:id", newsHandler.Delete)
 		}
 
-		// Points
+		// Brand Management (Admin Only)
+		brandAdmin := api.Group("/brand/admin")
+		brandAdmin.Use(middleware.RoleMiddleware("admin"))
+		{
+			brandAdmin.POST("/", brandHandler.Create)
+			brandAdmin.PUT("/:id", brandHandler.Update)
+			brandAdmin.DELETE("/:id", brandHandler.Delete)
+		}
+
+		// Category Management (Admin Only)
+		categoryAdmin := api.Group("/category/admin")
+		categoryAdmin.Use(middleware.RoleMiddleware("admin"))
+		{
+			categoryAdmin.POST("/", categoryHandler.Create)
+			categoryAdmin.DELETE("/:id", categoryHandler.Delete)
+		}
+
+		// Product Management (Admin Only)
+		productAdmin := api.Group("/products/admin")
+		productAdmin.Use(middleware.RoleMiddleware("admin"))
+		{
+			productAdmin.POST("/", productHandler.Create)
+			productAdmin.PUT("/:id", productHandler.Update)
+			productAdmin.DELETE("/:id", productHandler.Delete)
+		}
+
+		// User & Profile
+		api.GET("/admin/users", middleware.RoleMiddleware("admin"), userHandler.GetAll)
+		profile := api.Group("/profile")
+		{
+			profile.GET("/:id", userHandler.GetByID)
+			profile.PUT("/:id", userHandler.Update)
+			profile.POST("/request-change-email", authHandler.RequestChangeEmail)
+			profile.POST("/verify-change-email", authHandler.VerifyChangeEmail)
+		}
+
+		// Points & Loyalty
 		points := api.Group("/points")
 		{
 			points.GET("/history", pHandler.GetHistory)
@@ -142,54 +167,32 @@ func init() {
 			points.GET("/admin/all", middleware.RoleMiddleware("admin"), pHandler.GetAllSummaries)
 		}
 
-		// News
-		api.GET("/news", newsHandler.GetAll)
-		newsAdmin := api.Group("/news")
-		newsAdmin.Use(middleware.RoleMiddleware("admin"))
+		// Cart System
+		cart := api.Group("/cart")
 		{
-			newsAdmin.POST("/admin", newsHandler.Create)
-			newsAdmin.PUT("/admin/:id", newsHandler.Update)
-			newsAdmin.DELETE("/admin/:id", newsHandler.Delete)
+			cart.GET("/", cartHandler.GetMyCart)
+			cart.POST("/", cartHandler.AddToCart)
+			cart.DELETE("/:id", cartHandler.DeleteItem)
+			cart.DELETE("/clear", cartHandler.ClearMyCart)
 		}
 
-		api.GET("/admin/users", middleware.RoleMiddleware("admin"), userHandler.GetAll)
-
-		// Profile
-		userGroup := api.Group("/profile")
-		{
-			userGroup.GET("/:id", userHandler.GetByID)
-			userGroup.PUT("/:id", userHandler.Update)
-			userGroup.POST("/request-change-email", authHandler.RequestChangeEmail)
-			userGroup.POST("/verify-change-email", authHandler.VerifyChangeEmail)
-		}
-
-		// Cart
-		cartGroup := api.Group("/cart")
-		{
-			cartGroup.GET("/", cartHandler.GetMyCart)
-			cartGroup.POST("/", cartHandler.AddToCart)
-			cartGroup.DELETE("/:id", cartHandler.DeleteItem)
-			cartGroup.DELETE("/clear", cartHandler.ClearMyCart)
-		}
-
-		// Rewards User
+		// Reward System
 		rewards := api.Group("/rewards")
 		{
 			rewards.GET("/", rewardHandler.GetAll)
 			rewards.POST("/claim", rewardHandler.Claim)
 			rewards.GET("/history", rewardHandler.GetMyHistory)
-		}
 
-		// Rewards Admin
-		rewardsAdmin := api.Group("/rewards/admin")
-		rewardsAdmin.Use(middleware.RoleMiddleware("admin"))
-		{
-			rewardsAdmin.PATCH("/approve", rewardHandler.Approve)
-			rewardsAdmin.PATCH("/reject", rewardHandler.Reject)
-			rewardsAdmin.POST("/", rewardHandler.Create)
-			rewardsAdmin.PUT("/:id", rewardHandler.Update)
-			rewardsAdmin.DELETE("/:id", rewardHandler.Delete)
-			rewardsAdmin.GET("/history/all", rewardHandler.GetAllUserHistory)
+			admin := rewards.Group("/admin")
+			admin.Use(middleware.RoleMiddleware("admin"))
+			{
+				admin.GET("/history/all", rewardHandler.GetAllUserHistory)
+				admin.POST("/", rewardHandler.Create)
+				admin.PUT("/:id", rewardHandler.Update)
+				admin.DELETE("/:id", rewardHandler.Delete)
+				admin.PATCH("/approve", rewardHandler.Approve)
+				admin.PATCH("/reject", rewardHandler.Reject)
+			}
 		}
 	}
 
@@ -197,14 +200,9 @@ func init() {
 	log.Println("SUCCESS: Router fully initialized")
 }
 
-// Handler is the entry point for Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
-	// Logging request info ke terminal Vercel/Local
-	log.Printf("INCOMING REQUEST: %s %s", r.Method, r.URL.Path)
-
 	if router == nil {
-		log.Println("ERROR: Router is NIL. This is likely due to a DB failure or init() panic.")
-		http.Error(w, "Internal Server Error: Router not initialized. Check logs.", http.StatusInternalServerError)
+		http.Error(w, "Service Unavailable: Check Logs", http.StatusServiceUnavailable)
 		return
 	}
 	router.ServeHTTP(w, r)
