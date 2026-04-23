@@ -95,7 +95,6 @@ type News struct {
 	NewsID      uint      `gorm:"primaryKey" json:"news_id"`
 	Title       string    `gorm:"size:50;not null" json:"title"`
 	Description string    `json:"description"`
-	IsActive    bool      `gorm:"default:true" json:"is_active"`
 	Status      string    `gorm:"type:news_status" json:"status"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	CreatedAt   time.Time `json:"created_at"`

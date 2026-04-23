@@ -25,10 +25,6 @@ func (h *NewsHandler) Create(c *gin.Context) {
 		Description: c.PostForm("description"),
 		Status:      c.PostForm("status"),
 	}
-
-	// Default IsActive ke true jika tidak dikirim
-	n.IsActive = true
-
 	// 2. Ambil file gambar
 	var imageStream io.Reader
 	var fileName, contentType string
